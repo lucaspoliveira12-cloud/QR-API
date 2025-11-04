@@ -1,4 +1,4 @@
-from flask import Flask, Response, request
+from flask import Flask, Response, redirect, request
 import qrcode
 import io
 import random
@@ -8,7 +8,7 @@ import time
 
 app = Flask(__name__)
 
-# Variáveis globais (mantém apenas o último QR válido)
+# Guarda o último QR gerado e o tempo
 current_qr = None
 qr_created_at = None
 EXPIRATION_TIME = 60  # 1 minuto
@@ -26,41 +26,45 @@ def generate_qr():
         current_qr = unique_id
         qr_created_at = time.time()
 
-        # URL que o QR code vai abrir
-        url = f"https://www.serranegrablog.com/erro?id={unique_id}"
+        # O QR code leva diretamente para o site principal
+        qr_url = f"https://www.serranegrablog.com/erro?id={unique_id}"
 
-        # Cria o QR Code em memória
-        img = qrcode.make(f"https://qr-api-1-63iq.onrender.com/validar?id={unique_id}")
+        # Cria o QR code com esse link
+        img = qrcode.make(qr_url)
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
         buffer.seek(0)
 
-        # Retorna a imagem PNG
         return Response(buffer.getvalue(), mimetype='image/png')
 
     except Exception as e:
         return f"Erro ao gerar QR: {e}"
 
-@app.route('/validar')
-def validar_qr():
+@app.route('/check')
+def check_validity():
+    """Endpoint que o site pode consultar para saber se o QR ainda é válido."""
     global current_qr, qr_created_at
-
     codigo = request.args.get("id")
 
-    # Nenhum QR foi gerado ainda
+    # Nenhum QR gerado ainda
     if not current_qr or not qr_created_at:
-        return "<h3 style='color:red;'>❌ Nenhum QR ativo no momento.</h3>", 403
+        return Response("❌ Nenhum QR ativo no momento.", status=403)
 
-    # Se passou de 1 minuto, expira
+    # Se expirou
     if time.time() - qr_created_at > EXPIRATION_TIME:
-        return "<h3 style='color:red;'>⏰ QR Code expirado!</h3>", 403
+        return Response("⏰ Expirado", status=403)
 
-    # Se o código for o atual
+    # Se é o atual
     if codigo == current_qr:
-        tempo_restante = int(EXPIRATION_TIME - (time.time() - qr_created_at))
-        return f"<h3 style='color:green;'>✅ QR Code válido!</h3><p>Expira em {tempo_restante} segundos.</p>"
+        return Response("✅ Válido", status=200)
     else:
-        return "<h3 style='color:red;'>❌ QR Code inválido ou antigo!</h3>", 403
+        return Response("❌ Inválido", status=403)
+
+
+@app.route('/invalido')
+def invalido():
+    """Página ou imagem de QR inválido"""
+    return "<h3 style='color:red; text-align:center;'>❌ QR Code inválido ou expirado</h3>"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
