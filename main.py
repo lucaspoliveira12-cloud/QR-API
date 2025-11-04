@@ -9,8 +9,8 @@ import json
 
 app = Flask(__name__)
 
-EXPIRATION_TIME = 60  # segundos (1 minuto)
-DATA_FILE = "qr_data.json"  # arquivo simples para guardar o último QR
+EXPIRATION_TIME = 60  # segundos
+DATA_FILE = os.path.join(os.path.dirname(__file__), "qr_data.json")
 
 def save_qr_data(code):
     data = {"code": code, "timestamp": time.time()}
@@ -31,14 +31,11 @@ def home():
 @app.route('/qr')
 def generate_qr():
     try:
-        # Gera um código único
         unique_id = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-        save_qr_data(unique_id)  # salva no arquivo
+        save_qr_data(unique_id)
 
-        # Monta o link de validação
-        url = f"https://qr-api-vl7v.onrender.com/validar?id={unique_id}"
+        url = f"https://qr-api-1-63iq.onrender.com/validar?id={unique_id}"
 
-        # Gera o QR Code
         img = qrcode.make(url)
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
@@ -57,7 +54,6 @@ def validar_qr():
     if not last_code or not code_timestamp:
         return "<h3 style='color:red;'>❌ Nenhum QR ativo no momento.</h3>", 403
 
-    # Verifica se expirou
     if time.time() - code_timestamp > EXPIRATION_TIME:
         return "<h3 style='color:red;'>⏰ QR Code expirado (tempo esgotado)!</h3>", 403
 
@@ -70,6 +66,7 @@ def validar_qr():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
