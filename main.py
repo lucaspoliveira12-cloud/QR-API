@@ -1,59 +1,52 @@
-from flask import Flask, send_file
+# main.py
+from flask import Flask, send_file, Response
 import qrcode
 from PIL import Image
 import io
 import random
 import string
+import os   # <--- IMPORT ESSENCIAL ADICIONADO
 
 app = Flask(__name__)
 
 @app.route('/')
-def gerar_qr():
-    # Gera um código aleatório (para que o QR seja sempre único)
-    codigo = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+def home():
+    return "<h2>Servidor de QR Codes ativo ✅</h2>"
 
-    # Define o link de destino
-    url = f"https://www.serranegrablog.com/?id={codigo}"
-
-    # Cria o QR Code com alta correção de erro (para suportar logo)
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(url)
-    qr.make(fit=True)
-
-    # Cria imagem do QR
-    img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-
-    # Adiciona a logo (deve estar na mesma pasta)
-    logo_path = "logo.png"  # mantenha esse nome
+@app.route('/qr')
+def generate_qr():
     try:
-        logo = Image.open(logo_path)
-        # Redimensiona a logo
-        basewidth = 100
-        wpercent = (basewidth / float(logo.size[0]))
-        hsize = int((float(logo.size[1]) * float(wpercent)))
-        logo = logo.resize((basewidth, hsize), Image.Resampling.LANCZOS)
+        # Gera um código único a cada carregamento
+        unique_id = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        url = f"https://www.serranegrablog.com/?id={unique_id}"
 
-        # Centraliza a logo no QR
-        pos = ((img.size[0] - logo.size[0]) // 2, (img.size[1] - logo.size[1]) // 2)
-        img.paste(logo, pos, mask=logo if logo.mode == 'RGBA' else None)
-    except Exception as e:
-        print("Logo não encontrada ou inválida:", e)
+        # Cria o QR Code com alta correção (necessário para colocar logo)
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(url)
+        qr.make(fit=True)
 
-    # Retorna o QR como imagem PNG
-    img_io = io.BytesIO()
-    img.save(img_io, 'PNG')
-    img_io.seek(0)
-    return send_file(img_io, mimetype='image/png')
+        # Gera a imagem do QR
+        img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
 
+        # Tenta abrir e colar a logo (logo.png deve estar na mesma pasta)
+        logo_path = "logo.png"
+        try:
+            logo = Image.open(logo_path)
+            # Redimensiona a logo proporcionalmente (base 100 px)
+            basewidth = 100
+            wpercent = (basewidth / float(logo.size[0]))
+            hsize = int((float(logo.size[1]) * float(wpercent)))
+            # Use Image.LANCZOS se sua versão do Pillow suportar
+            try:
+                logo = logo.resize((basewidth, hsize), Image.Resampling.LANCZOS)
+            except AttributeError:
+                logo = logo
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
 
 
 
