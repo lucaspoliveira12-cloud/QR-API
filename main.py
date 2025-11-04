@@ -8,10 +8,10 @@ import time
 
 app = Flask(__name__)
 
-# Guarda o último QR gerado e o tempo
+# Mantém o último código e o tempo de criação
 current_qr = None
 qr_created_at = None
-EXPIRATION_TIME = 60  # 1 minuto
+EXPIRATION_TIME = 60  # segundos
 
 @app.route('/')
 def home():
@@ -21,13 +21,13 @@ def home():
 def generate_qr():
     global current_qr, qr_created_at
     try:
-        # Gera um código único e registra o tempo
+        # Gera um código único e registra a hora
         unique_id = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
         current_qr = unique_id
         qr_created_at = time.time()
 
-        # O QR code leva diretamente para o site principal
-        qr_url = f"https://www.serranegrablog.com/erro?id={unique_id}"
+        # O QR code aponta para o endpoint /redirect do servidor
+        qr_url = f"https://qr-api-1-63iq.onrender.com/redirect?id={unique_id}"
 
         # Cria o QR code com esse link
         img = qrcode.make(qr_url)
@@ -40,34 +40,31 @@ def generate_qr():
     except Exception as e:
         return f"Erro ao gerar QR: {e}"
 
-@app.route('/check')
-def check_validity():
-    """Endpoint que o site pode consultar para saber se o QR ainda é válido."""
+@app.route('/redirect')
+def redirect_qr():
+    """Redireciona para a página certa dependendo do tempo"""
     global current_qr, qr_created_at
+
     codigo = request.args.get("id")
 
-    # Nenhum QR gerado ainda
+    # Nenhum QR foi gerado ainda
     if not current_qr or not qr_created_at:
-        return Response("❌ Nenhum QR ativo no momento.", status=403)
+        return redirect("https://www.serranegrablog.com/erro")
 
-    # Se expirou
+    # Se passou de 1 minuto → redireciona para página de erro
     if time.time() - qr_created_at > EXPIRATION_TIME:
-        return Response("⏰ Expirado", status=403)
+        return redirect("https://www.serranegrablog.com/erro")
 
-    # Se é o atual
+    # Se for o QR atual → redireciona para a landing page
     if codigo == current_qr:
-        return Response("✅ Válido", status=200)
+        return redirect(f"https://www.serranegrablog.com/app-landing-page?id={codigo}")
     else:
-        return Response("❌ Inválido", status=403)
-
-
-@app.route('/invalido')
-def invalido():
-    """Página ou imagem de QR inválido"""
-    return "<h3 style='color:red; text-align:center;'>❌ QR Code inválido ou expirado</h3>"
+        return redirect("https://www.serranegrablog.com/erro")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
+
 
 
