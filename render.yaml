@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: qr-api
+    env: python
+    buildCommand: ""
+    startCommand: python main.py
