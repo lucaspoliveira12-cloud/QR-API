@@ -11,7 +11,7 @@ app = Flask(__name__)
 # Mantém o último código e o tempo de criação
 current_qr = None
 qr_created_at = None
-EXPIRATION_TIME = 60  # segundos
+EXPIRATION_TIME = 300  # segundos
 
 @app.route('/')
 def home():
@@ -64,6 +64,7 @@ def redirect_qr():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
